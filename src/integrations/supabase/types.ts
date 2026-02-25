@@ -14,16 +14,199 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      payments: {
+        Row: {
+          amount: number
+          created_at: string
+          crypto_currency: string
+          expires_at: string
+          id: string
+          shipment_id: string
+          status: string
+          type: string
+          wallet_address: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          crypto_currency?: string
+          expires_at: string
+          id?: string
+          shipment_id: string
+          status?: string
+          type: string
+          wallet_address: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          crypto_currency?: string
+          expires_at?: string
+          id?: string
+          shipment_id?: string
+          status?: string
+          type?: string
+          wallet_address?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "shipments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shipments: {
+        Row: {
+          created_at: string
+          current_lat: number | null
+          current_lng: number | null
+          current_location_label: string | null
+          current_location_timestamp: string | null
+          delivery_note: string | null
+          destination_country: string
+          estimated_delivery: string
+          hold_reason: string | null
+          id: string
+          insurance_fee: number | null
+          insurance_requested_at: string | null
+          insurance_status: string
+          origin_country: string
+          receiver_address: string | null
+          receiver_country: string
+          receiver_name: string
+          sender_address: string | null
+          sender_country: string
+          sender_name: string
+          shipping_fee: number
+          status: string
+          tracking_code: string
+          transport_mode: string
+        }
+        Insert: {
+          created_at?: string
+          current_lat?: number | null
+          current_lng?: number | null
+          current_location_label?: string | null
+          current_location_timestamp?: string | null
+          delivery_note?: string | null
+          destination_country: string
+          estimated_delivery: string
+          hold_reason?: string | null
+          id?: string
+          insurance_fee?: number | null
+          insurance_requested_at?: string | null
+          insurance_status?: string
+          origin_country: string
+          receiver_address?: string | null
+          receiver_country: string
+          receiver_name: string
+          sender_address?: string | null
+          sender_country: string
+          sender_name: string
+          shipping_fee?: number
+          status?: string
+          tracking_code: string
+          transport_mode?: string
+        }
+        Update: {
+          created_at?: string
+          current_lat?: number | null
+          current_lng?: number | null
+          current_location_label?: string | null
+          current_location_timestamp?: string | null
+          delivery_note?: string | null
+          destination_country?: string
+          estimated_delivery?: string
+          hold_reason?: string | null
+          id?: string
+          insurance_fee?: number | null
+          insurance_requested_at?: string | null
+          insurance_status?: string
+          origin_country?: string
+          receiver_address?: string | null
+          receiver_country?: string
+          receiver_name?: string
+          sender_address?: string | null
+          sender_country?: string
+          sender_name?: string
+          shipping_fee?: number
+          status?: string
+          tracking_code?: string
+          transport_mode?: string
+        }
+        Relationships: []
+      }
+      timeline_events: {
+        Row: {
+          description: string
+          id: string
+          location: string | null
+          shipment_id: string
+          timestamp: string
+          title: string
+        }
+        Insert: {
+          description?: string
+          id?: string
+          location?: string | null
+          shipment_id: string
+          timestamp?: string
+          title: string
+        }
+        Update: {
+          description?: string
+          id?: string
+          location?: string | null
+          shipment_id?: string
+          timestamp?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timeline_events_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "shipments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +333,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const

@@ -1,11 +1,11 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Package, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useShipments } from '@/context/ShipmentContext';
+import { useAuth } from '@/context/AuthContext';
 
 export function Navbar() {
   const location = useLocation();
-  const { isAdmin, adminLogout } = useShipments();
+  const { isAdmin, signOut } = useAuth();
   const isAdminRoute = location.pathname.startsWith('/admin');
 
   return (
@@ -18,10 +18,10 @@ export function Navbar() {
         <nav className="flex items-center gap-2">
           {isAdmin && isAdminRoute ? (
             <>
-              <Link to="/admin">
+              <Link to="/admin/dashboard">
                 <Button variant="ghost" size="sm">Dashboard</Button>
               </Link>
-              <Button variant="ghost" size="sm" onClick={adminLogout}>Logout</Button>
+              <Button variant="ghost" size="sm" onClick={() => signOut()}>Logout</Button>
             </>
           ) : (
             <Link to="/admin">

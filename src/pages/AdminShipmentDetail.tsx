@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, Navigate, Link } from 'react-router-dom';
-import { ArrowLeft, MapPin, CreditCard, ShieldCheck, Pause, Play, CheckCircle } from 'lucide-react';
+import { ArrowLeft, MapPin, CreditCard, ShieldCheck, Pause, Play, CheckCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useShipments } from '@/context/ShipmentContext';
+import { useAuth } from '@/context/AuthContext';
+import { useShipmentById, useUpdateShipment, useAddTimelineEvent, useAddPayment, useUpdatePayment } from '@/hooks/useShipments';
 import { ShipmentTimeline } from '@/components/ShipmentTimeline';
 import { STATUS_CONFIG, COUNTRIES } from '@/types/shipment';
 import type { ShipmentStatus, PaymentType } from '@/types/shipment';
@@ -18,26 +19,31 @@ const STATUSES: ShipmentStatus[] = ['processing', 'picked-up', 'in-transit', 'in
 
 export default function AdminShipmentDetail() {
   const { id } = useParams<{ id: string }>();
-  const { shipments, updateShipment, isAdmin } = useShipments();
-  const shipment = shipments.find(s => s.id === id);
+  const { isAdmin, loading: authLoading } = useAuth();
+  const { data: shipment, isLoading } = useShipmentById(id || '');
+  const updateShipment = useUpdateShipment();
+  const addTimeline = useAddTimelineEvent();
 
+  if (authLoading) return null;
   if (!isAdmin) return <Navigate to="/admin" replace />;
+  if (isLoading) return <main className="container py-20 flex justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></main>;
   if (!shipment) return <main className="container py-20 text-center"><h1 className="text-xl font-bold">Shipment not found</h1></main>;
 
   const cfg = STATUS_CONFIG[shipment.status];
 
-  const handleStatusUpdate = (newStatus: string) => {
+  const handleStatusUpdate = async (newStatus: string) => {
     const status = newStatus as ShipmentStatus;
-    const event = {
-      id: crypto.randomUUID(),
+    await updateShipment.mutateAsync({
+      id: shipment.id,
+      updates: {
+        status,
+        hold_reason: status !== 'on-hold' ? null : shipment.holdReason || null,
+      },
+    });
+    await addTimeline.mutateAsync({
+      shipment_id: shipment.id,
       title: STATUS_CONFIG[status].label,
       description: `Status updated to ${STATUS_CONFIG[status].label}`,
-      timestamp: new Date().toISOString(),
-    };
-    updateShipment(shipment.id, {
-      status,
-      holdReason: status !== 'on-hold' ? undefined : shipment.holdReason,
-      timeline: [...shipment.timeline, event],
     });
     toast.success(`Status updated to ${STATUS_CONFIG[status].label}`);
   };
@@ -48,7 +54,6 @@ export default function AdminShipmentDetail() {
         <ArrowLeft className="h-4 w-4" /> Back to dashboard
       </Link>
 
-      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold font-mono text-foreground">{shipment.trackingCode}</h1>
@@ -58,15 +63,12 @@ export default function AdminShipmentDetail() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Timeline */}
         <Card>
           <CardHeader><CardTitle>Timeline</CardTitle></CardHeader>
           <CardContent><ShipmentTimeline events={shipment.timeline} /></CardContent>
         </Card>
 
-        {/* Management */}
         <div className="space-y-6">
-          {/* Status */}
           <Card>
             <CardHeader className="pb-3"><CardTitle className="text-base">Update Status</CardTitle></CardHeader>
             <CardContent>
@@ -79,39 +81,40 @@ export default function AdminShipmentDetail() {
             </CardContent>
           </Card>
 
-          {/* Location */}
-          <LocationUpdate shipmentId={shipment.id} />
-
-          {/* Hold */}
+          <LocationUpdate shipmentId={shipment.id} currentLocation={shipment.currentLocation} />
           <HoldSection shipmentId={shipment.id} currentHoldReason={shipment.holdReason} status={shipment.status} />
-
-          {/* Payment */}
           <PaymentRequestSection shipmentId={shipment.id} payments={shipment.payments} />
-
-          {/* Insurance */}
           <InsuranceSection shipmentId={shipment.id} insurance={shipment.insurance} />
-
-          {/* Deliver */}
-          <DeliverSection shipmentId={shipment.id} status={shipment.status} timeline={shipment.timeline} />
+          <DeliverSection shipmentId={shipment.id} status={shipment.status} />
         </div>
       </div>
     </main>
   );
 }
 
-function LocationUpdate({ shipmentId }: { shipmentId: string }) {
-  const { updateShipment, shipments } = useShipments();
-  const s = shipments.find(x => x.id === shipmentId)!;
-  const [lat, setLat] = useState(s.currentLocation?.lat?.toString() || '');
-  const [lng, setLng] = useState(s.currentLocation?.lng?.toString() || '');
-  const [label, setLabel] = useState(s.currentLocation?.label || '');
+function LocationUpdate({ shipmentId, currentLocation }: { shipmentId: string; currentLocation?: { lat: number; lng: number; label: string } }) {
+  const updateShipment = useUpdateShipment();
+  const addTimeline = useAddTimelineEvent();
+  const [lat, setLat] = useState(currentLocation?.lat?.toString() || '');
+  const [lng, setLng] = useState(currentLocation?.lng?.toString() || '');
+  const [label, setLabel] = useState(currentLocation?.label || '');
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!lat || !lng || !label) { toast.error('Fill all location fields'); return; }
-    const loc = { lat: parseFloat(lat), lng: parseFloat(lng), label, timestamp: new Date().toISOString() };
-    updateShipment(shipmentId, {
-      currentLocation: loc,
-      timeline: [...s.timeline, { id: crypto.randomUUID(), title: 'Location Updated', description: `Now at: ${label}`, timestamp: new Date().toISOString(), location: label }],
+    await updateShipment.mutateAsync({
+      id: shipmentId,
+      updates: {
+        current_lat: parseFloat(lat),
+        current_lng: parseFloat(lng),
+        current_location_label: label,
+        current_location_timestamp: new Date().toISOString(),
+      },
+    });
+    await addTimeline.mutateAsync({
+      shipment_id: shipmentId,
+      title: 'Location Updated',
+      description: `Now at: ${label}`,
+      location: label,
     });
     toast.success('Location updated');
   };
@@ -132,26 +135,20 @@ function LocationUpdate({ shipmentId }: { shipmentId: string }) {
 }
 
 function HoldSection({ shipmentId, currentHoldReason, status }: { shipmentId: string; currentHoldReason?: string; status: ShipmentStatus }) {
-  const { updateShipment, shipments } = useShipments();
-  const s = shipments.find(x => x.id === shipmentId)!;
+  const updateShipment = useUpdateShipment();
+  const addTimeline = useAddTimelineEvent();
   const [reason, setReason] = useState(currentHoldReason || '');
 
-  const handleHold = () => {
+  const handleHold = async () => {
     if (!reason) { toast.error('Enter a hold reason'); return; }
-    updateShipment(shipmentId, {
-      status: 'on-hold',
-      holdReason: reason,
-      timeline: [...s.timeline, { id: crypto.randomUUID(), title: 'On Hold', description: reason, timestamp: new Date().toISOString() }],
-    });
+    await updateShipment.mutateAsync({ id: shipmentId, updates: { status: 'on-hold', hold_reason: reason } });
+    await addTimeline.mutateAsync({ shipment_id: shipmentId, title: 'On Hold', description: reason });
     toast.success('Shipment put on hold');
   };
 
-  const handleRelease = () => {
-    updateShipment(shipmentId, {
-      status: 'in-transit',
-      holdReason: undefined,
-      timeline: [...s.timeline, { id: crypto.randomUUID(), title: 'Released', description: 'Hold released, shipment resumed', timestamp: new Date().toISOString() }],
-    });
+  const handleRelease = async () => {
+    await updateShipment.mutateAsync({ id: shipmentId, updates: { status: 'in-transit', hold_reason: null } });
+    await addTimeline.mutateAsync({ shipment_id: shipmentId, title: 'Released', description: 'Hold released, shipment resumed' });
     toast.success('Hold released');
   };
 
@@ -170,41 +167,36 @@ function HoldSection({ shipmentId, currentHoldReason, status }: { shipmentId: st
 }
 
 function PaymentRequestSection({ shipmentId, payments }: { shipmentId: string; payments: any[] }) {
-  const { updateShipment, shipments } = useShipments();
-  const s = shipments.find(x => x.id === shipmentId)!;
+  const updateShipment = useUpdateShipment();
+  const addTimeline = useAddTimelineEvent();
+  const addPayment = useAddPayment();
+  const updatePaymentMut = useUpdatePayment();
   const [type, setType] = useState<string>('shipping');
   const [amount, setAmount] = useState('');
   const [wallet, setWallet] = useState('');
   const [crypto, setCrypto] = useState('USDT');
   const [hours, setHours] = useState('48');
 
-  const handleRequest = () => {
+  const handleRequest = async () => {
     if (!amount || !wallet) { toast.error('Fill amount and wallet'); return; }
-    const payment = {
-      id: globalThis.crypto.randomUUID(),
-      type: type as PaymentType,
+    await addPayment.mutateAsync({
+      shipment_id: shipmentId,
+      type,
       amount: parseFloat(amount),
-      cryptoCurrency: crypto,
-      walletAddress: wallet,
-      expiresAt: new Date(Date.now() + parseInt(hours) * 3600000).toISOString(),
-      status: 'pending' as const,
-      createdAt: new Date().toISOString(),
-    };
-    updateShipment(shipmentId, {
-      status: 'payment-pending',
-      payments: [...s.payments, payment],
-      timeline: [...s.timeline, { id: globalThis.crypto.randomUUID(), title: 'Payment Requested', description: `${type} payment of ${amount} ${crypto}`, timestamp: new Date().toISOString() }],
+      crypto_currency: crypto,
+      wallet_address: wallet,
+      expires_at: new Date(Date.now() + parseInt(hours) * 3600000).toISOString(),
     });
+    await updateShipment.mutateAsync({ id: shipmentId, updates: { status: 'payment-pending' } });
+    await addTimeline.mutateAsync({ shipment_id: shipmentId, title: 'Payment Requested', description: `${type} payment of ${amount} ${crypto}` });
     setAmount(''); setWallet('');
     toast.success('Payment requested');
   };
 
-  const handleConfirm = (paymentId: string) => {
-    updateShipment(shipmentId, {
-      status: 'in-transit',
-      payments: s.payments.map(p => p.id === paymentId ? { ...p, status: 'confirmed' as const } : p),
-      timeline: [...s.timeline, { id: globalThis.crypto.randomUUID(), title: 'Payment Confirmed', description: 'Crypto payment confirmed by admin', timestamp: new Date().toISOString() }],
-    });
+  const handleConfirm = async (paymentId: string) => {
+    await updatePaymentMut.mutateAsync({ id: paymentId, status: 'confirmed' });
+    await updateShipment.mutateAsync({ id: shipmentId, updates: { status: 'in-transit' } });
+    await addTimeline.mutateAsync({ shipment_id: shipmentId, title: 'Payment Confirmed', description: 'Crypto payment confirmed by admin' });
     toast.success('Payment confirmed');
   };
 
@@ -212,7 +204,6 @@ function PaymentRequestSection({ shipmentId, payments }: { shipmentId: string; p
     <Card>
       <CardHeader className="pb-3"><CardTitle className="text-base"><CreditCard className="h-4 w-4 inline mr-2 text-accent" />Payment Requests</CardTitle></CardHeader>
       <CardContent className="space-y-4">
-        {/* Existing payments */}
         {payments.filter(p => p.status === 'pending').map(p => (
           <div key={p.id} className="rounded-lg bg-muted p-3 flex items-center justify-between">
             <div>
@@ -221,9 +212,7 @@ function PaymentRequestSection({ shipmentId, payments }: { shipmentId: string; p
             </div>
             <Button variant="success" size="sm" onClick={() => handleConfirm(p.id)}>Confirm</Button>
           </div>
-        ))
-        }
-        {/* New request */}
+        ))}
         <div className="space-y-3 pt-2 border-t border-border">
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -263,16 +252,17 @@ function PaymentRequestSection({ shipmentId, payments }: { shipmentId: string; p
 }
 
 function InsuranceSection({ shipmentId, insurance }: { shipmentId: string; insurance: any }) {
-  const { updateShipment, shipments } = useShipments();
-  const s = shipments.find(x => x.id === shipmentId)!;
+  const updateShipment = useUpdateShipment();
+  const addTimeline = useAddTimelineEvent();
   const [fee, setFee] = useState(insurance.fee?.toString() || '');
 
-  const handlePrice = () => {
+  const handlePrice = async () => {
     if (!fee) { toast.error('Enter insurance fee'); return; }
-    updateShipment(shipmentId, {
-      insurance: { ...s.insurance, status: 'priced', fee: parseFloat(fee) },
-      timeline: [...s.timeline, { id: globalThis.crypto.randomUUID(), title: 'Insurance Priced', description: `Insurance priced at $${fee}`, timestamp: new Date().toISOString() }],
+    await updateShipment.mutateAsync({
+      id: shipmentId,
+      updates: { insurance_status: 'priced', insurance_fee: parseFloat(fee) },
     });
+    await addTimeline.mutateAsync({ shipment_id: shipmentId, title: 'Insurance Priced', description: `Insurance priced at $${fee}` });
     toast.success('Insurance priced');
   };
 
@@ -295,16 +285,17 @@ function InsuranceSection({ shipmentId, insurance }: { shipmentId: string; insur
   );
 }
 
-function DeliverSection({ shipmentId, status, timeline }: { shipmentId: string; status: ShipmentStatus; timeline: any[] }) {
-  const { updateShipment } = useShipments();
+function DeliverSection({ shipmentId, status }: { shipmentId: string; status: ShipmentStatus }) {
+  const updateShipment = useUpdateShipment();
+  const addTimeline = useAddTimelineEvent();
   const [note, setNote] = useState('');
 
-  const handleDeliver = () => {
-    updateShipment(shipmentId, {
-      status: 'delivered',
-      deliveryNote: note || undefined,
-      timeline: [...timeline, { id: globalThis.crypto.randomUUID(), title: 'Delivered', description: note || 'Package delivered successfully', timestamp: new Date().toISOString() }],
+  const handleDeliver = async () => {
+    await updateShipment.mutateAsync({
+      id: shipmentId,
+      updates: { status: 'delivered', delivery_note: note || null },
     });
+    await addTimeline.mutateAsync({ shipment_id: shipmentId, title: 'Delivered', description: note || 'Package delivered successfully' });
     toast.success('Shipment marked as delivered');
   };
 

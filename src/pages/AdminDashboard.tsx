@@ -1,26 +1,30 @@
 import { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { Plus, Eye, Package } from 'lucide-react';
+import { Plus, Eye, Package, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useShipments } from '@/context/ShipmentContext';
+import { useAuth } from '@/context/AuthContext';
+import { useShipmentsList, useCreateShipment } from '@/hooks/useShipments';
 import { COUNTRIES, TRANSPORT_MODES, STATUS_CONFIG } from '@/types/shipment';
 import type { TransportMode } from '@/types/shipment';
 import { toast } from 'sonner';
 
 export default function AdminDashboard() {
-  const { shipments, addShipment, isAdmin } = useShipments();
+  const { isAdmin, loading: authLoading } = useAuth();
+  const { data: shipments = [], isLoading } = useShipmentsList();
+  const createShipment = useCreateShipment();
   const [open, setOpen] = useState(false);
 
+  if (authLoading) return null;
   if (!isAdmin) return <Navigate to="/admin" replace />;
 
-  const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const data = {
@@ -42,9 +46,13 @@ export default function AdminDashboard() {
       return;
     }
 
-    const s = addShipment(data);
-    toast.success(`Shipment created: ${s.trackingCode}`);
-    setOpen(false);
+    try {
+      const result = await createShipment.mutateAsync(data);
+      toast.success(`Shipment created: ${result.trackingCode}`);
+      setOpen(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to create shipment');
+    }
   };
 
   const countryOptions = Object.entries(COUNTRIES);
@@ -121,45 +129,54 @@ export default function AdminDashboard() {
                 <div><Label>Est. Delivery *</Label><Input type="date" name="estimatedDelivery" required /></div>
                 <div><Label>Shipping Fee ($) *</Label><Input type="number" name="shippingFee" step="0.01" min="0" required /></div>
               </div>
-              <Button type="submit" variant="accent" className="w-full">Create Shipment</Button>
+              <Button type="submit" variant="accent" className="w-full" disabled={createShipment.isPending}>
+                {createShipment.isPending ? 'Creating...' : 'Create Shipment'}
+              </Button>
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
-      <div className="space-y-3">
-        {shipments.map(s => {
-          const cfg = STATUS_CONFIG[s.status];
-          return (
-            <Card key={s.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                      <Package className="h-5 w-5 text-primary" />
+      {isLoading ? (
+        <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+      ) : (
+        <div className="space-y-3">
+          {shipments.map(s => {
+            const cfg = STATUS_CONFIG[s.status];
+            return (
+              <Card key={s.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                        <Package className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-mono font-semibold text-foreground">{s.trackingCode}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {COUNTRIES[s.originCountry]} → {COUNTRIES[s.destinationCountry]}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-mono font-semibold text-foreground">{s.trackingCode}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {COUNTRIES[s.originCountry]} → {COUNTRIES[s.destinationCountry]}
-                      </p>
+                    <div className="flex items-center gap-3">
+                      <Badge variant={cfg.color as any}>{cfg.label}</Badge>
+                      <span className="text-xs text-muted-foreground hidden sm:inline">
+                        {format(new Date(s.createdAt), 'MMM d, yyyy')}
+                      </span>
+                      <Link to={`/admin/shipment/${s.id}`}>
+                        <Button variant="ghost" size="sm"><Eye className="h-4 w-4" /></Button>
+                      </Link>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Badge variant={cfg.color as any}>{cfg.label}</Badge>
-                    <span className="text-xs text-muted-foreground hidden sm:inline">
-                      {format(new Date(s.createdAt), 'MMM d, yyyy')}
-                    </span>
-                    <Link to={`/admin/shipment/${s.id}`}>
-                      <Button variant="ghost" size="sm"><Eye className="h-4 w-4" /></Button>
-                    </Link>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+          {shipments.length === 0 && (
+            <p className="text-center text-muted-foreground py-12">No shipments yet. Create your first one!</p>
+          )}
+        </div>
+      )}
     </main>
   );
 }
