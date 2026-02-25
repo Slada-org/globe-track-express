@@ -1,10 +1,10 @@
 import { useParams, Link } from 'react-router-dom';
 import { format } from 'date-fns';
-import { ArrowLeft, MapPin, Clock, Plane, Ship, Truck, Bike, AlertTriangle, ShieldCheck, CreditCard } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, Plane, Ship, Truck, Bike, AlertTriangle, ShieldCheck, CreditCard, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useShipments } from '@/context/ShipmentContext';
+import { useShipmentByTracking, useUpdateShipment, useAddTimelineEvent } from '@/hooks/useShipments';
 import { ShipmentTimeline } from '@/components/ShipmentTimeline';
 import { STATUS_CONFIG, COUNTRIES, TRANSPORT_MODES } from '@/types/shipment';
 import type { PaymentRequest } from '@/types/shipment';
@@ -71,8 +71,13 @@ function PaymentSection({ payment }: { payment: PaymentRequest }) {
 
 export default function TrackResult() {
   const { code } = useParams<{ code: string }>();
-  const { getByTrackingCode, updateShipment } = useShipments();
-  const shipment = getByTrackingCode(code || '');
+  const { data: shipment, isLoading } = useShipmentByTracking(code || '');
+  const updateShipment = useUpdateShipment();
+  const addTimeline = useAddTimelineEvent();
+
+  if (isLoading) {
+    return <main className="container py-20 flex justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></main>;
+  }
 
   if (!shipment) {
     return (
@@ -90,9 +95,10 @@ export default function TrackResult() {
   const modeInfo = TRANSPORT_MODES.find(m => m.value === shipment.transportMode);
   const pendingPayments = shipment.payments.filter(p => p.status === 'pending');
 
-  const handleRequestInsurance = () => {
-    updateShipment(shipment.id, {
-      insurance: { ...shipment.insurance, status: 'requested', requestedAt: new Date().toISOString() },
+  const handleRequestInsurance = async () => {
+    await updateShipment.mutateAsync({
+      id: shipment.id,
+      updates: { insurance_status: 'requested', insurance_requested_at: new Date().toISOString() },
     });
     toast.success('Insurance request submitted!');
   };
@@ -103,7 +109,6 @@ export default function TrackResult() {
         <ArrowLeft className="h-4 w-4" /> Back to tracking
       </Link>
 
-      {/* Status Banner */}
       <div className="rounded-xl bg-card border border-border p-6 mb-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -127,9 +132,7 @@ export default function TrackResult() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Details */}
           <Card>
             <CardContent className="p-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -159,20 +162,13 @@ export default function TrackResult() {
             </CardContent>
           </Card>
 
-          {/* Timeline */}
           <Card>
-            <CardHeader>
-              <CardTitle>Shipment Timeline</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ShipmentTimeline events={shipment.timeline} />
-            </CardContent>
+            <CardHeader><CardTitle>Shipment Timeline</CardTitle></CardHeader>
+            <CardContent><ShipmentTimeline events={shipment.timeline} /></CardContent>
           </Card>
         </div>
 
-        {/* Right Column */}
         <div className="space-y-6">
-          {/* Map */}
           {shipment.currentLocation && (
             <Card>
               <CardHeader className="pb-2">
@@ -196,12 +192,10 @@ export default function TrackResult() {
             </Card>
           )}
 
-          {/* Payments */}
           {pendingPayments.map(p => (
             <PaymentSection key={p.id} payment={p} />
           ))}
 
-          {/* Insurance */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2">
@@ -232,7 +226,6 @@ export default function TrackResult() {
             </CardContent>
           </Card>
 
-          {/* Delivery Note */}
           {shipment.status === 'delivered' && shipment.deliveryNote && (
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-base">Delivery Note</CardTitle></CardHeader>
