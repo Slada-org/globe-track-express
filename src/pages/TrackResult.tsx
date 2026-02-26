@@ -4,7 +4,9 @@ import { ArrowLeft, MapPin, Clock, Plane, Ship, Truck, Bike, AlertTriangle, Shie
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useShipmentByTracking, useUpdateShipment, useAddTimelineEvent } from '@/hooks/useShipments';
+import { useShipmentByTracking } from '@/hooks/useShipments';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 import { ShipmentTimeline } from '@/components/ShipmentTimeline';
 import { STATUS_CONFIG, COUNTRIES, TRANSPORT_MODES } from '@/types/shipment';
 import type { PaymentRequest } from '@/types/shipment';
@@ -72,8 +74,7 @@ function PaymentSection({ payment }: { payment: PaymentRequest }) {
 export default function TrackResult() {
   const { code } = useParams<{ code: string }>();
   const { data: shipment, isLoading } = useShipmentByTracking(code || '');
-  const updateShipment = useUpdateShipment();
-  const addTimeline = useAddTimelineEvent();
+  const queryClient = useQueryClient();
 
   if (isLoading) {
     return <main className="container py-20 flex justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></main>;
@@ -96,10 +97,8 @@ export default function TrackResult() {
   const pendingPayments = shipment.payments.filter(p => p.status === 'pending');
 
   const handleRequestInsurance = async () => {
-    await updateShipment.mutateAsync({
-      id: shipment.id,
-      updates: { insurance_status: 'requested', insurance_requested_at: new Date().toISOString() },
-    });
+    await supabase.rpc('request_insurance', { p_shipment_id: shipment.id });
+    queryClient.invalidateQueries({ queryKey: ['shipment', 'tracking'] });
     toast.success('Insurance request submitted!');
   };
 
