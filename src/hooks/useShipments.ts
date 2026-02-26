@@ -12,9 +12,11 @@ function mapShipment(row: any, timeline: any[], payments: any[]): Shipment {
     senderName: row.sender_name,
     senderAddress: row.sender_address || '',
     senderCountry: row.sender_country,
+    senderEmail: row.sender_email || '',
     receiverName: row.receiver_name,
     receiverAddress: row.receiver_address || '',
     receiverCountry: row.receiver_country,
+    receiverEmail: row.receiver_email || '',
     originCountry: row.origin_country,
     destinationCountry: row.destination_country,
     transportMode: row.transport_mode,
@@ -149,9 +151,11 @@ export function useCreateShipment() {
           sender_name: data.senderName,
           sender_address: data.senderAddress,
           sender_country: data.senderCountry,
+          sender_email: data.senderEmail,
           receiver_name: data.receiverName,
           receiver_address: data.receiverAddress,
           receiver_country: data.receiverCountry,
+          receiver_email: data.receiverEmail,
           origin_country: data.originCountry,
           destination_country: data.destinationCountry,
           transport_mode: data.transportMode,
@@ -168,6 +172,24 @@ export function useCreateShipment() {
         title: 'Shipment Created',
         description: 'Package registered in the system',
       });
+
+      // Send notification emails (fire-and-forget)
+      if (data.senderEmail || data.receiverEmail) {
+        supabase.functions.invoke('send-shipment-email', {
+          body: {
+            trackingCode,
+            senderName: data.senderName,
+            senderEmail: data.senderEmail,
+            receiverName: data.receiverName,
+            receiverEmail: data.receiverEmail,
+            originCountry: data.originCountry,
+            destinationCountry: data.destinationCountry,
+            transportMode: data.transportMode,
+            estimatedDelivery: data.estimatedDelivery,
+            shippingFee: data.shippingFee,
+          },
+        }).catch(err => console.error('Email notification failed:', err));
+      }
 
       return { trackingCode, id: row.id };
     },

@@ -31,9 +31,11 @@ export default function AdminDashboard() {
       senderName: fd.get('senderName') as string,
       senderAddress: fd.get('senderAddress') as string,
       senderCountry: fd.get('senderCountry') as string,
+      senderEmail: fd.get('senderEmail') as string || '',
       receiverName: fd.get('receiverName') as string,
       receiverAddress: fd.get('receiverAddress') as string,
       receiverCountry: fd.get('receiverCountry') as string,
+      receiverEmail: fd.get('receiverEmail') as string || '',
       originCountry: fd.get('originCountry') as string || fd.get('senderCountry') as string,
       destinationCountry: fd.get('destinationCountry') as string || fd.get('receiverCountry') as string,
       transportMode: fd.get('transportMode') as TransportMode,
@@ -76,6 +78,7 @@ export default function AdminDashboard() {
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Sender</h3>
               <div className="grid grid-cols-1 gap-3">
                 <div><Label>Name *</Label><Input name="senderName" required /></div>
+                <div><Label>Email</Label><Input name="senderEmail" type="email" placeholder="sender@example.com" /></div>
                 <div><Label>Address</Label><Input name="senderAddress" /></div>
                 <div>
                   <Label>Country *</Label>
@@ -89,6 +92,7 @@ export default function AdminDashboard() {
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide pt-2">Receiver</h3>
               <div className="grid grid-cols-1 gap-3">
                 <div><Label>Name *</Label><Input name="receiverName" required /></div>
+                <div><Label>Email</Label><Input name="receiverEmail" type="email" placeholder="receiver@example.com" /></div>
                 <div><Label>Address</Label><Input name="receiverAddress" /></div>
                 <div>
                   <Label>Country *</Label>

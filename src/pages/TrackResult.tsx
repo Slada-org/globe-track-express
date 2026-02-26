@@ -8,7 +8,7 @@ import { useShipmentByTracking } from '@/hooks/useShipments';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { ShipmentTimeline } from '@/components/ShipmentTimeline';
-import { STATUS_CONFIG, COUNTRIES, TRANSPORT_MODES } from '@/types/shipment';
+import { STATUS_CONFIG, COUNTRIES, TRANSPORT_MODES, COUNTRY_COORDS } from '@/types/shipment';
 import type { PaymentRequest } from '@/types/shipment';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
@@ -168,28 +168,54 @@ export default function TrackResult() {
         </div>
 
         <div className="space-y-6">
-          {shipment.currentLocation && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-accent" /> Current Location
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm font-medium text-foreground mb-2">{shipment.currentLocation.label}</p>
-                <div className="rounded-lg overflow-hidden border border-border aspect-video">
-                  <iframe
-                    title="Shipment Location"
-                    width="100%"
-                    height="100%"
-                    style={{ border: 0 }}
-                    loading="lazy"
-                    src={`https://maps.google.com/maps?q=${shipment.currentLocation.lat},${shipment.currentLocation.lng}&z=10&output=embed`}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-accent" />
+                {shipment.currentLocation ? 'Current Location' : 'Route Overview'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {shipment.currentLocation ? (
+                <>
+                  <p className="text-sm font-medium text-foreground mb-2">{shipment.currentLocation.label}</p>
+                  <div className="rounded-lg overflow-hidden border border-border aspect-video">
+                    <iframe
+                      title="Shipment Location"
+                      width="100%"
+                      height="100%"
+                      style={{ border: 0 }}
+                      loading="lazy"
+                      src={`https://maps.google.com/maps?q=${shipment.currentLocation.lat},${shipment.currentLocation.lng}&z=10&output=embed`}
+                    />
+                  </div>
+                </>
+              ) : (() => {
+                const origin = COUNTRY_COORDS[shipment.originCountry];
+                const dest = COUNTRY_COORDS[shipment.destinationCountry];
+                if (!origin || !dest) return <p className="text-sm text-muted-foreground">Map unavailable</p>;
+                const midLat = (origin.lat + dest.lat) / 2;
+                const midLng = (origin.lng + dest.lng) / 2;
+                return (
+                  <>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      {COUNTRIES[shipment.originCountry]} → {COUNTRIES[shipment.destinationCountry]}
+                    </p>
+                    <div className="rounded-lg overflow-hidden border border-border aspect-video">
+                      <iframe
+                        title="Route Overview"
+                        width="100%"
+                        height="100%"
+                        style={{ border: 0 }}
+                        loading="lazy"
+                        src={`https://maps.google.com/maps?q=${midLat},${midLng}&z=3&output=embed`}
+                      />
+                    </div>
+                  </>
+                );
+              })()}
+            </CardContent>
+          </Card>
 
           {pendingPayments.map(p => (
             <PaymentSection key={p.id} payment={p} />

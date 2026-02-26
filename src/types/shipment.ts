@@ -54,9 +54,11 @@ export interface Shipment {
   senderName: string;
   senderAddress: string;
   senderCountry: string;
+  senderEmail: string;
   receiverName: string;
   receiverAddress: string;
   receiverCountry: string;
+  receiverEmail: string;
   originCountry: string;
   destinationCountry: string;
   transportMode: TransportMode;
@@ -76,9 +78,11 @@ export interface CreateShipmentData {
   senderName: string;
   senderAddress: string;
   senderCountry: string;
+  senderEmail: string;
   receiverName: string;
   receiverAddress: string;
   receiverCountry: string;
+  receiverEmail: string;
   originCountry: string;
   destinationCountry: string;
   transportMode: TransportMode;
@@ -92,6 +96,17 @@ export const COUNTRIES: Record<string, string> = {
   IN: 'India', BR: 'Brazil', ZA: 'South Africa', AE: 'UAE', SG: 'Singapore',
   KR: 'South Korea', GH: 'Ghana', KE: 'Kenya', EG: 'Egypt', MX: 'Mexico',
   IT: 'Italy', ES: 'Spain', NL: 'Netherlands', SE: 'Sweden', TR: 'Turkey',
+};
+
+export const COUNTRY_COORDS: Record<string, { lat: number; lng: number }> = {
+  NG: { lat: 9.08, lng: 7.49 }, US: { lat: 38.9, lng: -77.04 }, GB: { lat: 51.51, lng: -0.13 },
+  DE: { lat: 52.52, lng: 13.41 }, CN: { lat: 39.9, lng: 116.4 }, JP: { lat: 35.68, lng: 139.69 },
+  FR: { lat: 48.86, lng: 2.35 }, CA: { lat: 45.42, lng: -75.7 }, AU: { lat: -33.87, lng: 151.21 },
+  IN: { lat: 28.61, lng: 77.23 }, BR: { lat: -15.79, lng: -47.88 }, ZA: { lat: -33.93, lng: 18.42 },
+  AE: { lat: 25.2, lng: 55.27 }, SG: { lat: 1.35, lng: 103.82 }, KR: { lat: 37.57, lng: 126.98 },
+  GH: { lat: 5.56, lng: -0.19 }, KE: { lat: -1.29, lng: 36.82 }, EG: { lat: 30.04, lng: 31.24 },
+  MX: { lat: 19.43, lng: -99.13 }, IT: { lat: 41.9, lng: 12.5 }, ES: { lat: 40.42, lng: -3.7 },
+  NL: { lat: 52.37, lng: 4.9 }, SE: { lat: 59.33, lng: 18.07 }, TR: { lat: 41.01, lng: 28.98 },
 };
 
 export const TRANSPORT_MODES: { value: TransportMode; label: string; icon: string }[] = [

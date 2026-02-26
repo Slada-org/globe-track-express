@@ -76,9 +76,11 @@ export type Database = {
           origin_country: string
           receiver_address: string | null
           receiver_country: string
+          receiver_email: string
           receiver_name: string
           sender_address: string | null
           sender_country: string
+          sender_email: string
           sender_name: string
           shipping_fee: number
           status: string
@@ -102,9 +104,11 @@ export type Database = {
           origin_country: string
           receiver_address?: string | null
           receiver_country: string
+          receiver_email?: string
           receiver_name: string
           sender_address?: string | null
           sender_country: string
+          sender_email?: string
           sender_name: string
           shipping_fee?: number
           status?: string
@@ -128,9 +132,11 @@ export type Database = {
           origin_country?: string
           receiver_address?: string | null
           receiver_country?: string
+          receiver_email?: string
           receiver_name?: string
           sender_address?: string | null
           sender_country?: string
+          sender_email?: string
           sender_name?: string
           shipping_fee?: number
           status?: string
