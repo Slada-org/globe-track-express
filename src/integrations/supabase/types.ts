@@ -204,6 +204,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      request_insurance: { Args: { p_shipment_id: string }; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "user"
