@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useParams, Navigate, Link } from 'react-router-dom';
-import { ArrowLeft, MapPin, CreditCard, ShieldCheck, Pause, Play, CheckCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, MapPin, CreditCard, ShieldCheck, Pause, Play, CheckCircle, Loader2, Camera, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/context/AuthContext';
 import { useShipmentById, useUpdateShipment, useAddTimelineEvent, useAddPayment, useUpdatePayment } from '@/hooks/useShipments';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 import { ShipmentTimeline } from '@/components/ShipmentTimeline';
 import { STATUS_CONFIG, COUNTRIES } from '@/types/shipment';
 import type { ShipmentStatus, PaymentType } from '@/types/shipment';
@@ -84,6 +86,7 @@ export default function AdminShipmentDetail() {
           <LocationUpdate shipmentId={shipment.id} currentLocation={shipment.currentLocation} />
           <HoldSection shipmentId={shipment.id} currentHoldReason={shipment.holdReason} status={shipment.status} />
           <PaymentRequestSection shipmentId={shipment.id} payments={shipment.payments} />
+          <PhotoUploadSection shipmentId={shipment.id} photos={shipment.photos} />
           <InsuranceSection shipmentId={shipment.id} insurance={shipment.insurance} />
           <DeliverSection shipmentId={shipment.id} status={shipment.status} />
         </div>
@@ -173,30 +176,43 @@ function PaymentRequestSection({ shipmentId, payments }: { shipmentId: string; p
   const updatePaymentMut = useUpdatePayment();
   const [type, setType] = useState<string>('shipping');
   const [amount, setAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<string>('crypto');
   const [wallet, setWallet] = useState('');
   const [crypto, setCrypto] = useState('USDT');
+  const [paymentDetails, setPaymentDetails] = useState('');
   const [hours, setHours] = useState('48');
 
   const handleRequest = async () => {
-    if (!amount || !wallet) { toast.error('Fill amount and wallet'); return; }
+    if (!amount) { toast.error('Fill amount'); return; }
+    if (paymentMethod === 'crypto' && !wallet) { toast.error('Fill wallet address'); return; }
+    if (paymentMethod !== 'crypto' && !paymentDetails) { toast.error('Fill payment details'); return; }
+
+    const methodLabels: Record<string, string> = { crypto: 'Cryptocurrency', western_union: 'Western Union', bank_transfer: 'Bank Transfer' };
+
     await addPayment.mutateAsync({
       shipment_id: shipmentId,
       type,
       amount: parseFloat(amount),
-      crypto_currency: crypto,
-      wallet_address: wallet,
+      payment_method: paymentMethod,
+      crypto_currency: paymentMethod === 'crypto' ? crypto : undefined,
+      wallet_address: paymentMethod === 'crypto' ? wallet : undefined,
+      payment_details: paymentMethod !== 'crypto' ? paymentDetails : undefined,
       expires_at: new Date(Date.now() + parseInt(hours) * 3600000).toISOString(),
     });
     await updateShipment.mutateAsync({ id: shipmentId, updates: { status: 'payment-pending' } });
-    await addTimeline.mutateAsync({ shipment_id: shipmentId, title: 'Payment Requested', description: `${type} payment of ${amount} ${crypto}` });
-    setAmount(''); setWallet('');
+    await addTimeline.mutateAsync({
+      shipment_id: shipmentId,
+      title: 'Payment Requested',
+      description: `${type} payment of ${amount} via ${methodLabels[paymentMethod]}`,
+    });
+    setAmount(''); setWallet(''); setPaymentDetails('');
     toast.success('Payment requested');
   };
 
   const handleConfirm = async (paymentId: string) => {
     await updatePaymentMut.mutateAsync({ id: paymentId, status: 'confirmed' });
     await updateShipment.mutateAsync({ id: shipmentId, updates: { status: 'in-transit' } });
-    await addTimeline.mutateAsync({ shipment_id: shipmentId, title: 'Payment Confirmed', description: 'Crypto payment confirmed by admin' });
+    await addTimeline.mutateAsync({ shipment_id: shipmentId, title: 'Payment Confirmed', description: 'Payment confirmed by admin' });
     toast.success('Payment confirmed');
   };
 
@@ -207,7 +223,7 @@ function PaymentRequestSection({ shipmentId, payments }: { shipmentId: string; p
         {payments.filter(p => p.status === 'pending').map(p => (
           <div key={p.id} className="rounded-lg bg-muted p-3 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium">{p.type} — {p.amount} {p.cryptoCurrency}</p>
+              <p className="text-sm font-medium">{p.type} — {p.amount} {p.paymentMethod === 'crypto' ? p.cryptoCurrency : p.paymentMethod.replace('_', ' ')}</p>
               <p className="text-xs text-muted-foreground">Pending</p>
             </div>
             <Button variant="success" size="sm" onClick={() => handleConfirm(p.id)}>Confirm</Button>
@@ -229,22 +245,144 @@ function PaymentRequestSection({ shipmentId, payments }: { shipmentId: string; p
             </div>
             <div><Label>Amount</Label><Input value={amount} onChange={e => setAmount(e.target.value)} type="number" step="0.01" /></div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Crypto</Label>
-              <Select value={crypto} onValueChange={setCrypto}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="USDT">USDT</SelectItem>
-                  <SelectItem value="BTC">BTC</SelectItem>
-                  <SelectItem value="ETH">ETH</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div><Label>Expiry (hours)</Label><Input value={hours} onChange={e => setHours(e.target.value)} type="number" /></div>
+
+          <div>
+            <Label>Payment Method</Label>
+            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="crypto">Cryptocurrency</SelectItem>
+                <SelectItem value="western_union">Western Union</SelectItem>
+                <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <div><Label>Wallet Address</Label><Input value={wallet} onChange={e => setWallet(e.target.value)} placeholder="0x..." /></div>
+
+          {paymentMethod === 'crypto' && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Crypto</Label>
+                  <Select value={crypto} onValueChange={setCrypto}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="USDT">USDT</SelectItem>
+                      <SelectItem value="BTC">BTC</SelectItem>
+                      <SelectItem value="ETH">ETH</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Expiry (hours)</Label><Input value={hours} onChange={e => setHours(e.target.value)} type="number" /></div>
+              </div>
+              <div><Label>Wallet Address</Label><Input value={wallet} onChange={e => setWallet(e.target.value)} placeholder="0x..." /></div>
+            </>
+          )}
+
+          {paymentMethod !== 'crypto' && (
+            <>
+              <div><Label>Expiry (hours)</Label><Input value={hours} onChange={e => setHours(e.target.value)} type="number" /></div>
+              <div>
+                <Label>{paymentMethod === 'western_union' ? 'Western Union Details' : 'Bank Account Details'}</Label>
+                <Textarea
+                  value={paymentDetails}
+                  onChange={e => setPaymentDetails(e.target.value)}
+                  placeholder={paymentMethod === 'western_union'
+                    ? 'Receiver name, MTCN, location...'
+                    : 'Bank name, account number, routing number, SWIFT/IBAN...'}
+                  rows={3}
+                />
+              </div>
+            </>
+          )}
+
           <Button variant="accent" size="sm" className="w-full" onClick={handleRequest}>Request Payment</Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function PhotoUploadSection({ shipmentId, photos }: { shipmentId: string; photos: any[] }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [caption, setCaption] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const queryClient = useQueryClient();
+
+  const handleUpload = async () => {
+    const file = fileRef.current?.files?.[0];
+    if (!file) { toast.error('Select a photo'); return; }
+
+    setUploading(true);
+    try {
+      const ext = file.name.split('.').pop();
+      const path = `${shipmentId}/${Date.now()}.${ext}`;
+      const { error: uploadErr } = await supabase.storage.from('shipment-photos').upload(path, file);
+      if (uploadErr) throw uploadErr;
+
+      const { data: { publicUrl } } = supabase.storage.from('shipment-photos').getPublicUrl(path);
+
+      const { error: dbErr } = await supabase.from('shipment_photos').insert({
+        shipment_id: shipmentId,
+        photo_url: publicUrl,
+        caption: caption || '',
+      });
+      if (dbErr) throw dbErr;
+
+      queryClient.invalidateQueries({ queryKey: ['shipment'] });
+      queryClient.invalidateQueries({ queryKey: ['shipments'] });
+      setCaption('');
+      if (fileRef.current) fileRef.current.value = '';
+      toast.success('Photo uploaded');
+    } catch (err: any) {
+      toast.error(err.message || 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDelete = async (photoId: string, url: string) => {
+    try {
+      // Extract storage path from URL
+      const parts = url.split('/shipment-photos/');
+      if (parts[1]) {
+        await supabase.storage.from('shipment-photos').remove([parts[1]]);
+      }
+      await supabase.from('shipment_photos').delete().eq('id', photoId);
+      queryClient.invalidateQueries({ queryKey: ['shipment'] });
+      queryClient.invalidateQueries({ queryKey: ['shipments'] });
+      toast.success('Photo deleted');
+    } catch {
+      toast.error('Failed to delete photo');
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3"><CardTitle className="text-base"><Camera className="h-4 w-4 inline mr-2 text-accent" />Package Photos</CardTitle></CardHeader>
+      <CardContent className="space-y-4">
+        {photos.length > 0 && (
+          <div className="grid grid-cols-2 gap-2">
+            {photos.map(ph => (
+              <div key={ph.id} className="relative group rounded-lg overflow-hidden border border-border">
+                <img src={ph.photoUrl} alt={ph.caption} className="w-full h-24 object-cover" />
+                <button
+                  onClick={() => handleDelete(ph.id, ph.photoUrl)}
+                  className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+                {ph.caption && <p className="text-xs text-muted-foreground p-1 truncate">{ph.caption}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="space-y-3 pt-2 border-t border-border">
+          <div><Label>Photo</Label><Input ref={fileRef} type="file" accept="image/*" /></div>
+          <div><Label>Caption (optional)</Label><Input value={caption} onChange={e => setCaption(e.target.value)} placeholder="e.g. Package at warehouse" /></div>
+          <Button variant="accent" size="sm" className="w-full" onClick={handleUpload} disabled={uploading}>
+            {uploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Camera className="h-4 w-4 mr-2" />}
+            Upload Photo
+          </Button>
         </div>
       </CardContent>
     </Card>

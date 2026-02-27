@@ -4,7 +4,7 @@ import type { Shipment, CreateShipmentData, TimelineEvent, PaymentRequest, Insur
 import { generateTrackingCode } from '@/types/shipment';
 
 // Map DB row to Shipment type
-function mapShipment(row: any, timeline: any[], payments: any[]): Shipment {
+function mapShipment(row: any, timeline: any[], payments: any[], photos: any[]): Shipment {
   return {
     id: row.id,
     trackingCode: row.tracking_code,
@@ -41,11 +41,19 @@ function mapShipment(row: any, timeline: any[], payments: any[]): Shipment {
       id: p.id,
       type: p.type,
       amount: Number(p.amount),
-      cryptoCurrency: p.crypto_currency,
-      walletAddress: p.wallet_address,
+      paymentMethod: p.payment_method || 'crypto',
+      cryptoCurrency: p.crypto_currency || undefined,
+      walletAddress: p.wallet_address || undefined,
+      paymentDetails: p.payment_details || undefined,
       expiresAt: p.expires_at,
       status: p.status,
       createdAt: p.created_at,
+    })),
+    photos: photos.map(ph => ({
+      id: ph.id,
+      photoUrl: ph.photo_url,
+      caption: ph.caption || '',
+      createdAt: ph.created_at,
     })),
     insurance: {
       status: row.insurance_status || 'none',
@@ -69,9 +77,10 @@ export function useShipmentsList() {
 
       const ids = (rows || []).map(r => r.id);
       
-      const [tlRes, payRes] = await Promise.all([
+      const [tlRes, payRes, photoRes] = await Promise.all([
         supabase.from('timeline_events').select('*').in('shipment_id', ids).order('timestamp', { ascending: true }),
         supabase.from('payments').select('*').in('shipment_id', ids).order('created_at', { ascending: true }),
+        supabase.from('shipment_photos').select('*').in('shipment_id', ids).order('created_at', { ascending: true }),
       ]);
 
       const timelineMap = new Map<string, any[]>();
@@ -88,7 +97,14 @@ export function useShipmentsList() {
         paymentMap.set(p.shipment_id, arr);
       });
 
-      return (rows || []).map(r => mapShipment(r, timelineMap.get(r.id) || [], paymentMap.get(r.id) || []));
+      const photoMap = new Map<string, any[]>();
+      (photoRes.data || []).forEach(ph => {
+        const arr = photoMap.get(ph.shipment_id) || [];
+        arr.push(ph);
+        photoMap.set(ph.shipment_id, arr);
+      });
+
+      return (rows || []).map(r => mapShipment(r, timelineMap.get(r.id) || [], paymentMap.get(r.id) || [], photoMap.get(r.id) || []));
     },
   });
 }
@@ -105,12 +121,13 @@ export function useShipmentByTracking(code: string) {
       if (error) throw error;
       if (!row) return null;
 
-      const [tlRes, payRes] = await Promise.all([
+      const [tlRes, payRes, photoRes] = await Promise.all([
         supabase.from('timeline_events').select('*').eq('shipment_id', row.id).order('timestamp', { ascending: true }),
         supabase.from('payments').select('*').eq('shipment_id', row.id).order('created_at', { ascending: true }),
+        supabase.from('shipment_photos').select('*').eq('shipment_id', row.id).order('created_at', { ascending: true }),
       ]);
 
-      return mapShipment(row, tlRes.data || [], payRes.data || []);
+      return mapShipment(row, tlRes.data || [], payRes.data || [], photoRes.data || []);
     },
     enabled: !!code,
   });
@@ -128,12 +145,13 @@ export function useShipmentById(id: string) {
       if (error) throw error;
       if (!row) return null;
 
-      const [tlRes, payRes] = await Promise.all([
+      const [tlRes, payRes, photoRes] = await Promise.all([
         supabase.from('timeline_events').select('*').eq('shipment_id', row.id).order('timestamp', { ascending: true }),
         supabase.from('payments').select('*').eq('shipment_id', row.id).order('created_at', { ascending: true }),
+        supabase.from('shipment_photos').select('*').eq('shipment_id', row.id).order('created_at', { ascending: true }),
       ]);
 
-      return mapShipment(row, tlRes.data || [], payRes.data || []);
+      return mapShipment(row, tlRes.data || [], payRes.data || [], photoRes.data || []);
     },
     enabled: !!id,
   });
@@ -238,8 +256,17 @@ export function useAddTimelineEvent() {
 export function useAddPayment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (payment: { shipment_id: string; type: string; amount: number; crypto_currency: string; wallet_address: string; expires_at: string }) => {
-      const { error } = await supabase.from('payments').insert(payment);
+    mutationFn: async (payment: { shipment_id: string; type: string; amount: number; payment_method: string; crypto_currency?: string; wallet_address?: string; payment_details?: string; expires_at: string }) => {
+      const { error } = await supabase.from('payments').insert({
+        shipment_id: payment.shipment_id,
+        type: payment.type,
+        amount: payment.amount,
+        payment_method: payment.payment_method,
+        crypto_currency: payment.crypto_currency || null,
+        wallet_address: payment.wallet_address || null,
+        payment_details: payment.payment_details || null,
+        expires_at: payment.expires_at,
+      });
       if (error) throw error;
     },
     onSuccess: () => {

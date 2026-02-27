@@ -22,14 +22,25 @@ export interface ShipmentLocation {
   timestamp: string;
 }
 
+export type PaymentMethod = 'crypto' | 'western_union' | 'bank_transfer';
+
 export interface PaymentRequest {
   id: string;
   type: PaymentType;
   amount: number;
-  cryptoCurrency: string;
-  walletAddress: string;
+  paymentMethod: PaymentMethod;
+  cryptoCurrency?: string;
+  walletAddress?: string;
+  paymentDetails?: string;
   expiresAt: string;
   status: PaymentStatus;
+  createdAt: string;
+}
+
+export interface ShipmentPhoto {
+  id: string;
+  photoUrl: string;
+  caption: string;
   createdAt: string;
 }
 
@@ -69,6 +80,7 @@ export interface Shipment {
   locationHistory: ShipmentLocation[];
   timeline: TimelineEvent[];
   payments: PaymentRequest[];
+  photos: ShipmentPhoto[];
   insurance: Insurance;
   deliveryNote?: string;
   createdAt: string;
