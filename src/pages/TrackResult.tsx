@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router-dom';
 import { format } from 'date-fns';
-import { ArrowLeft, MapPin, Clock, Plane, Ship, Truck, Bike, AlertTriangle, ShieldCheck, CreditCard, Loader2 } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, Plane, Ship, Truck, Bike, AlertTriangle, ShieldCheck, CreditCard, Loader2, Camera, Banknote, Building } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,31 +34,55 @@ function Countdown({ expiresAt }: { expiresAt: string }) {
 }
 
 function PaymentSection({ payment }: { payment: PaymentRequest }) {
-  const handleCopy = () => {
-    navigator.clipboard.writeText(payment.walletAddress);
-    toast.success('Wallet address copied!');
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success('Copied to clipboard!');
   };
+
+  const methodIcons: Record<string, any> = { crypto: CreditCard, western_union: Banknote, bank_transfer: Building };
+  const methodLabels: Record<string, string> = { crypto: 'Cryptocurrency', western_union: 'Western Union', bank_transfer: 'Bank Transfer' };
+  const MethodIcon = methodIcons[payment.paymentMethod] || CreditCard;
 
   return (
     <Card className="border-accent/30 bg-accent/5">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg">
-          <CreditCard className="h-5 w-5 text-accent" />
+          <MethodIcon className="h-5 w-5 text-accent" />
           Payment Required — {payment.type.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
         </CardTitle>
+        <Badge variant="outline" className="w-fit text-xs">{methodLabels[payment.paymentMethod]}</Badge>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex justify-between items-center">
           <span className="text-muted-foreground">Amount</span>
-          <span className="text-xl font-bold text-foreground">{payment.amount} {payment.cryptoCurrency}</span>
+          <span className="text-xl font-bold text-foreground">
+            {payment.paymentMethod === 'crypto'
+              ? `${payment.amount} ${payment.cryptoCurrency}`
+              : `$${payment.amount}`}
+          </span>
         </div>
-        <div>
-          <p className="text-sm text-muted-foreground mb-1">Send to wallet address:</p>
-          <div className="flex items-center gap-2">
-            <code className="flex-1 truncate rounded bg-muted px-3 py-2 text-xs font-mono text-foreground">{payment.walletAddress}</code>
-            <Button variant="outline" size="sm" onClick={handleCopy}>Copy</Button>
+
+        {payment.paymentMethod === 'crypto' && payment.walletAddress && (
+          <div>
+            <p className="text-sm text-muted-foreground mb-1">Send to wallet address:</p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 truncate rounded bg-muted px-3 py-2 text-xs font-mono text-foreground">{payment.walletAddress}</code>
+              <Button variant="outline" size="sm" onClick={() => handleCopy(payment.walletAddress!)}>Copy</Button>
+            </div>
           </div>
-        </div>
+        )}
+
+        {payment.paymentMethod !== 'crypto' && payment.paymentDetails && (
+          <div>
+            <p className="text-sm text-muted-foreground mb-1">
+              {payment.paymentMethod === 'western_union' ? 'Western Union Details:' : 'Bank Account Details:'}
+            </p>
+            <div className="rounded bg-muted px-3 py-2 text-sm text-foreground whitespace-pre-line">
+              {payment.paymentDetails}
+            </div>
+          </div>
+        )}
+
         <div className="flex justify-between items-center pt-2 border-t border-border">
           <span className="text-sm text-muted-foreground">Time remaining</span>
           <Countdown expiresAt={payment.expiresAt} />
@@ -256,6 +280,26 @@ export default function TrackResult() {
               <CardHeader className="pb-2"><CardTitle className="text-base">Delivery Note</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">{shipment.deliveryNote}</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {shipment.photos.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Camera className="h-4 w-4 text-accent" /> Package Photos
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-2">
+                  {shipment.photos.map(ph => (
+                    <div key={ph.id} className="rounded-lg overflow-hidden border border-border">
+                      <img src={ph.photoUrl} alt={ph.caption || 'Package photo'} className="w-full h-24 object-cover cursor-pointer hover:opacity-90 transition-opacity" onClick={() => window.open(ph.photoUrl, '_blank')} />
+                      {ph.caption && <p className="text-xs text-muted-foreground p-1.5 truncate">{ph.caption}</p>}
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           )}

@@ -18,39 +18,77 @@ export type Database = {
         Row: {
           amount: number
           created_at: string
-          crypto_currency: string
+          crypto_currency: string | null
           expires_at: string
           id: string
+          payment_details: string | null
+          payment_method: string
           shipment_id: string
           status: string
           type: string
-          wallet_address: string
+          wallet_address: string | null
         }
         Insert: {
           amount: number
           created_at?: string
-          crypto_currency?: string
+          crypto_currency?: string | null
           expires_at: string
           id?: string
+          payment_details?: string | null
+          payment_method?: string
           shipment_id: string
           status?: string
           type: string
-          wallet_address: string
+          wallet_address?: string | null
         }
         Update: {
           amount?: number
           created_at?: string
-          crypto_currency?: string
+          crypto_currency?: string | null
           expires_at?: string
           id?: string
+          payment_details?: string | null
+          payment_method?: string
           shipment_id?: string
           status?: string
           type?: string
-          wallet_address?: string
+          wallet_address?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "payments_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "shipments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shipment_photos: {
+        Row: {
+          caption: string | null
+          created_at: string
+          id: string
+          photo_url: string
+          shipment_id: string
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          id?: string
+          photo_url: string
+          shipment_id: string
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          id?: string
+          photo_url?: string
+          shipment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipment_photos_shipment_id_fkey"
             columns: ["shipment_id"]
             isOneToOne: false
             referencedRelation: "shipments"
