@@ -53,6 +53,7 @@ function mapShipment(row: any, timeline: any[], payments: any[], photos: any[]):
       id: ph.id,
       photoUrl: ph.photo_url,
       caption: ph.caption || '',
+      mediaType: (ph as any).media_type || 'photo',
       createdAt: ph.created_at,
     })),
     insurance: {

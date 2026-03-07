@@ -303,14 +303,24 @@ function PaymentRequestSection({ shipmentId, payments }: { shipmentId: string; p
 }
 
 function PhotoUploadSection({ shipmentId, photos }: { shipmentId: string; photos: any[] }) {
-  const fileRef = useRef<HTMLInputElement>(null);
+  const photoRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLInputElement>(null);
   const [caption, setCaption] = useState('');
   const [uploading, setUploading] = useState(false);
   const queryClient = useQueryClient();
 
-  const handleUpload = async () => {
-    const file = fileRef.current?.files?.[0];
-    if (!file) { toast.error('Select a photo'); return; }
+  const photoItems = photos.filter(p => p.mediaType === 'photo');
+  const videoItems = photos.filter(p => p.mediaType === 'video');
+  const canAddPhoto = photoItems.length < 4;
+  const canAddVideo = videoItems.length < 1;
+
+  const handleUpload = async (mediaType: 'photo' | 'video') => {
+    const fileInput = mediaType === 'photo' ? photoRef.current : videoRef.current;
+    const file = fileInput?.files?.[0];
+    if (!file) { toast.error(`Select a ${mediaType}`); return; }
+
+    if (mediaType === 'photo' && !canAddPhoto) { toast.error('Maximum 4 photos allowed'); return; }
+    if (mediaType === 'video' && !canAddVideo) { toast.error('Maximum 1 video allowed'); return; }
 
     setUploading(true);
     try {
@@ -325,14 +335,15 @@ function PhotoUploadSection({ shipmentId, photos }: { shipmentId: string; photos
         shipment_id: shipmentId,
         photo_url: publicUrl,
         caption: caption || '',
-      });
+        media_type: mediaType,
+      } as any);
       if (dbErr) throw dbErr;
 
       queryClient.invalidateQueries({ queryKey: ['shipment'] });
       queryClient.invalidateQueries({ queryKey: ['shipments'] });
       setCaption('');
-      if (fileRef.current) fileRef.current.value = '';
-      toast.success('Photo uploaded');
+      if (fileInput) fileInput.value = '';
+      toast.success(`${mediaType === 'photo' ? 'Photo' : 'Video'} uploaded`);
     } catch (err: any) {
       toast.error(err.message || 'Upload failed');
     } finally {
@@ -342,7 +353,6 @@ function PhotoUploadSection({ shipmentId, photos }: { shipmentId: string; photos
 
   const handleDelete = async (photoId: string, url: string) => {
     try {
-      // Extract storage path from URL
       const parts = url.split('/shipment-photos/');
       if (parts[1]) {
         await supabase.storage.from('shipment-photos').remove([parts[1]]);
@@ -350,19 +360,23 @@ function PhotoUploadSection({ shipmentId, photos }: { shipmentId: string; photos
       await supabase.from('shipment_photos').delete().eq('id', photoId);
       queryClient.invalidateQueries({ queryKey: ['shipment'] });
       queryClient.invalidateQueries({ queryKey: ['shipments'] });
-      toast.success('Photo deleted');
+      toast.success('Deleted');
     } catch {
-      toast.error('Failed to delete photo');
+      toast.error('Failed to delete');
     }
   };
 
   return (
     <Card>
-      <CardHeader className="pb-3"><CardTitle className="text-base"><Camera className="h-4 w-4 inline mr-2 text-accent" />Package Photos</CardTitle></CardHeader>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base"><Camera className="h-4 w-4 inline mr-2 text-accent" />Package Media</CardTitle>
+        <p className="text-xs text-muted-foreground mt-1">{photoItems.length}/4 photos · {videoItems.length}/1 video</p>
+      </CardHeader>
       <CardContent className="space-y-4">
-        {photos.length > 0 && (
+        {/* Photos grid */}
+        {photoItems.length > 0 && (
           <div className="grid grid-cols-2 gap-2">
-            {photos.map(ph => (
+            {photoItems.map(ph => (
               <div key={ph.id} className="relative group rounded-lg overflow-hidden border border-border">
                 <img src={ph.photoUrl} alt={ph.caption} className="w-full h-24 object-cover" />
                 <button
@@ -376,13 +390,48 @@ function PhotoUploadSection({ shipmentId, photos }: { shipmentId: string; photos
             ))}
           </div>
         )}
+
+        {/* Video */}
+        {videoItems.length > 0 && (
+          <div className="space-y-2">
+            {videoItems.map(v => (
+              <div key={v.id} className="relative group rounded-lg overflow-hidden border border-border">
+                <video src={v.photoUrl} controls className="w-full max-h-48 bg-black" />
+                <button
+                  onClick={() => handleDelete(v.id, v.photoUrl)}
+                  className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+                {v.caption && <p className="text-xs text-muted-foreground p-1 truncate">{v.caption}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Upload section */}
         <div className="space-y-3 pt-2 border-t border-border">
-          <div><Label>Photo</Label><Input ref={fileRef} type="file" accept="image/*" /></div>
           <div><Label>Caption (optional)</Label><Input value={caption} onChange={e => setCaption(e.target.value)} placeholder="e.g. Package at warehouse" /></div>
-          <Button variant="accent" size="sm" className="w-full" onClick={handleUpload} disabled={uploading}>
-            {uploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Camera className="h-4 w-4 mr-2" />}
-            Upload Photo
-          </Button>
+
+          {canAddPhoto && (
+            <div className="space-y-2">
+              <div><Label>Photo</Label><Input ref={photoRef} type="file" accept="image/*" /></div>
+              <Button variant="accent" size="sm" className="w-full" onClick={() => handleUpload('photo')} disabled={uploading}>
+                {uploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Camera className="h-4 w-4 mr-2" />}
+                Upload Photo ({photoItems.length}/4)
+              </Button>
+            </div>
+          )}
+
+          {canAddVideo && (
+            <div className="space-y-2">
+              <div><Label>Video</Label><Input ref={videoRef} type="file" accept="video/*" /></div>
+              <Button variant="accent" size="sm" className="w-full" onClick={() => handleUpload('video')} disabled={uploading}>
+                {uploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Video className="h-4 w-4 mr-2" />}
+                Upload Video ({videoItems.length}/1)
+              </Button>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
