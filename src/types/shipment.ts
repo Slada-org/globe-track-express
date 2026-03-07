@@ -41,6 +41,7 @@ export interface ShipmentPhoto {
   id: string;
   photoUrl: string;
   caption: string;
+  mediaType: 'photo' | 'video';
   createdAt: string;
 }
 

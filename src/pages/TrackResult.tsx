@@ -288,18 +288,24 @@ export default function TrackResult() {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Camera className="h-4 w-4 text-accent" /> Package Photos
+                  <Camera className="h-4 w-4 text-accent" /> Package Media
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-3">
                 <div className="grid grid-cols-2 gap-2">
-                  {shipment.photos.map(ph => (
+                  {shipment.photos.filter(p => p.mediaType === 'photo').map(ph => (
                     <div key={ph.id} className="rounded-lg overflow-hidden border border-border">
                       <img src={ph.photoUrl} alt={ph.caption || 'Package photo'} className="w-full h-24 object-cover cursor-pointer hover:opacity-90 transition-opacity" onClick={() => window.open(ph.photoUrl, '_blank')} />
                       {ph.caption && <p className="text-xs text-muted-foreground p-1.5 truncate">{ph.caption}</p>}
                     </div>
                   ))}
                 </div>
+                {shipment.photos.filter(p => p.mediaType === 'video').map(v => (
+                  <div key={v.id} className="rounded-lg overflow-hidden border border-border">
+                    <video src={v.photoUrl} controls className="w-full max-h-56 bg-black" />
+                    {v.caption && <p className="text-xs text-muted-foreground p-1.5 truncate">{v.caption}</p>}
+                  </div>
+                ))}
               </CardContent>
             </Card>
           )}
