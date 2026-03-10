@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Shipment, CreateShipmentData, TimelineEvent, PaymentRequest, Insurance } from '@/types/shipment';
-import { generateTrackingCode } from '@/types/shipment';
+import { generateTrackingCode, COUNTRY_COORDS, COUNTRIES } from '@/types/shipment';
 
 // Map DB row to Shipment type
 function mapShipment(row: any, timeline: any[], payments: any[], photos: any[]): Shipment {
