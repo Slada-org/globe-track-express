@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Shipment, CreateShipmentData, TimelineEvent, PaymentRequest, Insurance } from '@/types/shipment';
-import { generateTrackingCode } from '@/types/shipment';
+import { generateTrackingCode, COUNTRY_COORDS, COUNTRIES } from '@/types/shipment';
 
 // Map DB row to Shipment type
 function mapShipment(row: any, timeline: any[], payments: any[], photos: any[]): Shipment {
@@ -163,6 +163,8 @@ export function useCreateShipment() {
   return useMutation({
     mutationFn: async (data: CreateShipmentData) => {
       const trackingCode = generateTrackingCode(data.originCountry, data.destinationCountry);
+      const originCoords = COUNTRY_COORDS[data.originCountry];
+      const originLabel = COUNTRIES[data.originCountry] || data.originCountry;
       const { data: row, error } = await supabase
         .from('shipments')
         .insert({
@@ -180,6 +182,12 @@ export function useCreateShipment() {
           transport_mode: data.transportMode,
           estimated_delivery: data.estimatedDelivery,
           shipping_fee: data.shippingFee,
+          ...(originCoords ? {
+            current_lat: originCoords.lat,
+            current_lng: originCoords.lng,
+            current_location_label: originLabel,
+            current_location_timestamp: new Date().toISOString(),
+          } : {}),
         })
         .select()
         .single();
