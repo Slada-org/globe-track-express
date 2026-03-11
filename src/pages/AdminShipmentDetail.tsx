@@ -145,17 +145,13 @@ function DatesSection({ shipmentId, estimatedDelivery, departureDate }: { shipme
 function LocationUpdate({ shipmentId, currentLocation }: { shipmentId: string; currentLocation?: { lat: number; lng: number; label: string } }) {
   const updateShipment = useUpdateShipment();
   const addTimeline = useAddTimelineEvent();
-  const [lat, setLat] = useState(currentLocation?.lat?.toString() || '');
-  const [lng, setLng] = useState(currentLocation?.lng?.toString() || '');
   const [label, setLabel] = useState(currentLocation?.label || '');
 
   const handleSave = async () => {
-    if (!lat || !lng || !label) { toast.error('Fill all location fields'); return; }
+    if (!label) { toast.error('Enter a location'); return; }
     await updateShipment.mutateAsync({
       id: shipmentId,
       updates: {
-        current_lat: parseFloat(lat),
-        current_lng: parseFloat(lng),
         current_location_label: label,
         current_location_timestamp: new Date().toISOString(),
       },
@@ -173,11 +169,7 @@ function LocationUpdate({ shipmentId, currentLocation }: { shipmentId: string; c
     <Card>
       <CardHeader className="pb-3"><CardTitle className="text-base"><MapPin className="h-4 w-4 inline mr-2 text-accent" />Update Location</CardTitle></CardHeader>
       <CardContent className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
-          <div><Label>Latitude</Label><Input value={lat} onChange={e => setLat(e.target.value)} type="number" step="any" /></div>
-          <div><Label>Longitude</Label><Input value={lng} onChange={e => setLng(e.target.value)} type="number" step="any" /></div>
-        </div>
-        <div><Label>Location Label</Label><Input value={label} onChange={e => setLabel(e.target.value)} placeholder="e.g. London Heathrow Airport" /></div>
+        <div><Label>Location</Label><Input value={label} onChange={e => setLabel(e.target.value)} placeholder="e.g. London Heathrow Airport, UK" /></div>
         <Button variant="accent" size="sm" onClick={handleSave} className="w-full">Save Location</Button>
       </CardContent>
     </Card>

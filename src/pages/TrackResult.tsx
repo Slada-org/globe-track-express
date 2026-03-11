@@ -200,7 +200,7 @@ export default function TrackResult() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {shipment.currentLocation ? (
+              {shipment.currentLocation?.label ? (
                 <>
                   <p className="text-sm font-medium text-foreground mb-2">{shipment.currentLocation.label}</p>
                   <div className="rounded-lg overflow-hidden border border-border aspect-video">
@@ -210,34 +210,27 @@ export default function TrackResult() {
                       height="100%"
                       style={{ border: 0 }}
                       loading="lazy"
-                      src={`https://maps.google.com/maps?q=${shipment.currentLocation.lat},${shipment.currentLocation.lng}&z=10&output=embed`}
+                      src={`https://maps.google.com/maps?q=${encodeURIComponent(shipment.currentLocation.label)}&z=10&output=embed`}
                     />
                   </div>
                 </>
-              ) : (() => {
-                const origin = COUNTRY_COORDS[shipment.originCountry];
-                const dest = COUNTRY_COORDS[shipment.destinationCountry];
-                if (!origin || !dest) return <p className="text-sm text-muted-foreground">Map unavailable</p>;
-                const midLat = (origin.lat + dest.lat) / 2;
-                const midLng = (origin.lng + dest.lng) / 2;
-                return (
-                  <>
-                    <p className="text-sm text-muted-foreground mb-2">
-                      {COUNTRIES[shipment.originCountry]} → {COUNTRIES[shipment.destinationCountry]}
-                    </p>
-                    <div className="rounded-lg overflow-hidden border border-border aspect-video">
-                      <iframe
-                        title="Route Overview"
-                        width="100%"
-                        height="100%"
-                        style={{ border: 0 }}
-                        loading="lazy"
-                        src={`https://maps.google.com/maps?q=${midLat},${midLng}&z=3&output=embed`}
-                      />
-                    </div>
-                  </>
-                );
-              })()}
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    {COUNTRIES[shipment.originCountry]} → {COUNTRIES[shipment.destinationCountry]}
+                  </p>
+                  <div className="rounded-lg overflow-hidden border border-border aspect-video">
+                    <iframe
+                      title="Route Overview"
+                      width="100%"
+                      height="100%"
+                      style={{ border: 0 }}
+                      loading="lazy"
+                      src={`https://maps.google.com/maps?q=${encodeURIComponent(COUNTRIES[shipment.originCountry] || shipment.originCountry)}&z=5&output=embed`}
+                    />
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
