@@ -83,6 +83,7 @@ export default function AdminShipmentDetail() {
             </CardContent>
           </Card>
 
+          <DatesSection shipmentId={shipment.id} estimatedDelivery={shipment.estimatedDelivery} departureDate={shipment.departureDate} />
           <LocationUpdate shipmentId={shipment.id} currentLocation={shipment.currentLocation} />
           <HoldSection shipmentId={shipment.id} currentHoldReason={shipment.holdReason} status={shipment.status} />
           <PaymentRequestSection shipmentId={shipment.id} payments={shipment.payments} />

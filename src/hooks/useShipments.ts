@@ -61,6 +61,7 @@ function mapShipment(row: any, timeline: any[], payments: any[], photos: any[]):
       fee: row.insurance_fee ? Number(row.insurance_fee) : undefined,
       requestedAt: row.insurance_requested_at || undefined,
     },
+    departureDate: row.departure_date || undefined,
     deliveryNote: row.delivery_note || undefined,
     createdAt: row.created_at,
   };

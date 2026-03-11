@@ -83,6 +83,7 @@ export interface Shipment {
   payments: PaymentRequest[];
   photos: ShipmentPhoto[];
   insurance: Insurance;
+  departureDate?: string;
   deliveryNote?: string;
   createdAt: string;
 }
