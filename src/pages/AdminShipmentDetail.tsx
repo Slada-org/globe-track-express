@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useParams, Navigate, Link } from 'react-router-dom';
-import { ArrowLeft, MapPin, CreditCard, ShieldCheck, Pause, Play, CheckCircle, Loader2, Camera, Trash2, Video } from 'lucide-react';
+import { ArrowLeft, MapPin, CreditCard, ShieldCheck, Pause, Play, CheckCircle, Loader2, Camera, Trash2, Video, CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
