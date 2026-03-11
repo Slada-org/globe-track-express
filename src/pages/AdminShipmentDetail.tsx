@@ -142,7 +142,7 @@ function DatesSection({ shipmentId, estimatedDelivery, departureDate }: { shipme
   );
 }
 
-
+function LocationUpdate({ shipmentId, currentLocation }: { shipmentId: string; currentLocation?: { lat: number; lng: number; label: string } }) {
   const updateShipment = useUpdateShipment();
   const addTimeline = useAddTimelineEvent();
   const [lat, setLat] = useState(currentLocation?.lat?.toString() || '');
