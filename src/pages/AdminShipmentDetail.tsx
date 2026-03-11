@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useParams, Navigate, Link } from 'react-router-dom';
-import { ArrowLeft, MapPin, CreditCard, ShieldCheck, Pause, Play, CheckCircle, Loader2, Camera, Trash2, Video } from 'lucide-react';
+import { ArrowLeft, MapPin, CreditCard, ShieldCheck, Pause, Play, CheckCircle, Loader2, Camera, Trash2, Video, CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -83,6 +83,7 @@ export default function AdminShipmentDetail() {
             </CardContent>
           </Card>
 
+          <DatesSection shipmentId={shipment.id} estimatedDelivery={shipment.estimatedDelivery} departureDate={shipment.departureDate} />
           <LocationUpdate shipmentId={shipment.id} currentLocation={shipment.currentLocation} />
           <HoldSection shipmentId={shipment.id} currentHoldReason={shipment.holdReason} status={shipment.status} />
           <PaymentRequestSection shipmentId={shipment.id} payments={shipment.payments} />
@@ -92,6 +93,52 @@ export default function AdminShipmentDetail() {
         </div>
       </div>
     </main>
+  );
+}
+
+function DatesSection({ shipmentId, estimatedDelivery, departureDate }: { shipmentId: string; estimatedDelivery: string; departureDate?: string }) {
+  const updateShipment = useUpdateShipment();
+  const addTimeline = useAddTimelineEvent();
+  const [delivery, setDelivery] = useState(estimatedDelivery || '');
+  const [departure, setDeparture] = useState(departureDate || '');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const updates: Record<string, any> = {};
+      if (delivery !== estimatedDelivery) updates.estimated_delivery = delivery;
+      if (departure !== (departureDate || '')) updates.departure_date = departure || null;
+      if (Object.keys(updates).length === 0) { setSaving(false); return; }
+      await updateShipment.mutateAsync({ id: shipmentId, updates });
+      if (updates.estimated_delivery) {
+        await addTimeline.mutateAsync({ shipment_id: shipmentId, title: 'Delivery Date Updated', description: `Estimated delivery changed to ${delivery}` });
+      }
+      if (updates.departure_date !== undefined) {
+        await addTimeline.mutateAsync({ shipment_id: shipmentId, title: 'Departure Date Updated', description: `Departure/pickup date set to ${departure || 'N/A'}` });
+      }
+      toast.success('Dates updated');
+    } catch { toast.error('Failed to update dates'); }
+    setSaving(false);
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><CalendarIcon className="h-4 w-4" /> Dates</CardTitle></CardHeader>
+      <CardContent className="space-y-3">
+        <div>
+          <Label>Departure / Pickup Date</Label>
+          <Input type="date" value={departure} onChange={e => setDeparture(e.target.value)} />
+        </div>
+        <div>
+          <Label>Estimated Delivery Date</Label>
+          <Input type="date" value={delivery} onChange={e => setDelivery(e.target.value)} />
+        </div>
+        <Button size="sm" onClick={handleSave} disabled={saving}>
+          {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null} Save Dates
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 

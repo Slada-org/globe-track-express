@@ -107,6 +107,7 @@ export type Database = {
           current_location_label: string | null
           current_location_timestamp: string | null
           delivery_note: string | null
+          departure_date: string | null
           destination_country: string
           estimated_delivery: string
           hold_reason: string | null
@@ -135,6 +136,7 @@ export type Database = {
           current_location_label?: string | null
           current_location_timestamp?: string | null
           delivery_note?: string | null
+          departure_date?: string | null
           destination_country: string
           estimated_delivery: string
           hold_reason?: string | null
@@ -163,6 +165,7 @@ export type Database = {
           current_location_label?: string | null
           current_location_timestamp?: string | null
           delivery_note?: string | null
+          departure_date?: string | null
           destination_country?: string
           estimated_delivery?: string
           hold_reason?: string | null
