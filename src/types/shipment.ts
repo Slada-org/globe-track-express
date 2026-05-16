@@ -121,7 +121,8 @@ export const COUNTRIES: Record<string, string> = {
   SN: 'Senegal', SG: 'Singapore', ZA: 'South Africa', ES: 'Spain', SE: 'Sweden',
   CH: 'Switzerland', TW: 'Taiwan', TZ: 'Tanzania', TH: 'Thailand', TR: 'Turkey',
   UG: 'Uganda', AE: 'UAE', GB: 'United Kingdom', US: 'United States', UY: 'Uruguay',
-  VE: 'Venezuela', VN: 'Vietnam', ZM: 'Zambia', ZW: 'Zimbabwe',
+  VE: 'Venezuela', VN: 'Vietnam', ZM: 'Zambia', ZW: 'Zimbabwe', NR: 'Nothern Ireland', SY: 'Syria',
+
 };
 
 export const COUNTRY_COORDS: Record<string, { lat: number; lng: number }> = {
